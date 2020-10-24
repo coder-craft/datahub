@@ -1,0 +1,5 @@
+{
+	"LocalService":  "127.0.0.1:3501",
+	"RemoteService":  "127.0.0.1:3501",
+	"MysqlAccounts": "root:123456@tcp(127.0.0.1:3306)/datahubdb?charset=utf8mb4;allowNativePasswords=true;"
+}
