@@ -14,6 +14,9 @@ var (
 )
 
 type Config struct {
+	UserName      string
+	UserPass      string
+	UserApiKey    string
 	LocalService  string
 	RemoteService string
 	MysqlAccounts string
@@ -23,7 +26,7 @@ type Config struct {
 
 func init() {
 	flag.StringVar(&confPath, "conf", "datahub.cfg", "default config path")
-	flag.StringVar(&logPath, "log", "./log/msg_server.log", "default log path.")
+	flag.StringVar(&logPath, "log", "./msg_server.log", "default log path.")
 }
 func Init() error {
 	zlog.InitDefaultZapLog(logPath)
@@ -42,7 +45,7 @@ func Init() error {
 }
 func Default() *Config {
 	return &Config{
-		LocalService: "127.0.0.1:3500",
+		LocalService:  "127.0.0.1:3500",
 		RemoteService: "127.0.0.1:3501",
 	}
 }

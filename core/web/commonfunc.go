@@ -4,7 +4,10 @@ import (
 	"../common/zlog"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -53,4 +56,30 @@ func webApiResponse(rw http.ResponseWriter, params map[string]interface{}) bool 
 	}
 
 	return true
+}
+
+func RedirectResponse(rw http.ResponseWriter, req *http.Request) error {
+	zlog.Info("RedirectResponse", zlog.String("Url", req.URL.String()))
+	client := &http.Client{}
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequest(req.Method, req.URL.String(), strings.NewReader(string(body)))
+	if err != nil {
+		return err
+	}
+	for k, v := range req.Header {
+		request.Header.Set(k, v[0])
+	}
+	respone, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer respone.Body.Close()
+	for k, v := range respone.Header {
+		rw.Header().Set(k, v[0])
+	}
+	io.Copy(rw, respone.Body)
+	return nil
 }
