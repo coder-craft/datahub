@@ -58,28 +58,28 @@ func webApiResponse(rw http.ResponseWriter, params map[string]interface{}) bool 
 	return true
 }
 
-func RedirectResponse(rw http.ResponseWriter, req *http.Request) error {
+func RedirectResponse(rw http.ResponseWriter, req *http.Request) {
 	zlog.Info("RedirectResponse", zlog.String("Url", req.URL.String()))
 	client := &http.Client{}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return err
+		return
 	}
 	request, err := http.NewRequest(req.Method, req.URL.String(), strings.NewReader(string(body)))
 	if err != nil {
-		return err
+		return
 	}
 	for k, v := range req.Header {
 		request.Header.Set(k, v[0])
 	}
 	respone, err := client.Do(request)
 	if err != nil {
-		return err
+		return
 	}
 	defer respone.Body.Close()
 	for k, v := range respone.Header {
 		rw.Header().Set(k, v[0])
 	}
 	io.Copy(rw, respone.Body)
-	return nil
+	return
 }

@@ -22,19 +22,20 @@ func Start() {
 			filename := fmt.Sprintf("im%v.dump", time.Now().Format("200601021504050700"))
 			err := ioutil.WriteFile(filename, debug.Stack(), os.ModePerm)
 			if err != nil {
-				zlog.Error("Save dump file", zlog.String("Err",err.Error()))
+				zlog.Error("Save dump file", zlog.String("Err", err.Error()))
 			}
 		}
 	}()
 	err := remoteuser.InitUser()
 	if err != nil {
-		zlog.Error("Init user",zlog.String("Err",err.Error()))
+		zlog.Error("Init user", zlog.String("Err", err.Error()))
 		return
 	}
 	_ = mysql.InitMysqlDB()
 	web.StartHttpService()
 	//module
-	module.RegisterModule(device.DeviceMgr,time.Second)
+	module.RegisterModule(device.DeviceMgr, time.Second)
+	module.RegisterModule(remoteuser.UserMgr, time.Second)
 	module.ModuleStart()
 }
 func Stop() {

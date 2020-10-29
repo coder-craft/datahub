@@ -31,7 +31,7 @@ type AccessTokenRespone struct {
 	ClientSecret  string
 }
 
-const RefreshToken = "/oauth/token?grant_type=refresh_token&refresh_token=%v"
+const RefreshToken = "/oauth/token?grant_type=refresh_token&refresh_token=%v&client_id=%v&client_secret=%v"
 
 const DeviceData = "/api/device/getSingleDeviceDatas"
 
@@ -44,3 +44,10 @@ type DeviceDataReq struct {
 }
 
 const SwitcherController = "/api/device/switcherController"
+
+type SwitcherControllerReq struct {
+	UserId   int64  `json:"userId"`
+	DeviceNo string `json:"deviceNo"`
+	Switcher int64  `json:"switcher"`
+	SensorId int64  `json:"sensorId"`
+}

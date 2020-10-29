@@ -14,7 +14,12 @@ import (
 	"time"
 )
 
-var RemoteUserData RemoteUser
+const (
+	Userstate_Init   = 0
+	Userstate_Login  = 1
+	Userstate_Access = 2
+	Userstate_Flush  = 3
+)
 
 type RemoteUser struct {
 	UserName     string
@@ -47,7 +52,7 @@ func UserLogin() error {
 		PassWorld: conf.Conf.UserPass,
 		ApiKey:    conf.Conf.UserApiKey,
 	})
-	if err !=nil {
+	if err != nil {
 		return err
 	}
 	resp, err := client.Post(conf.Conf.RemoteService+model.UserLoginUrl, "application/json",
@@ -65,9 +70,11 @@ func UserLogin() error {
 		zlog.Error("Unmarshal userlogin respone", zlog.String("Err", err.Error()))
 		return err
 	}
-	RemoteUserData.Secret = ulr.Secret
-	RemoteUserData.UserId = ulr.Id
-	RemoteUserData.ClientId = ulr.ClientId
+	UserMgr.Secret = ulr.Secret
+	UserMgr.UserId = ulr.Id
+	UserMgr.ClientId = ulr.ClientId
+	UserMgr.userstate = Userstate_Login
+	zlog.Info("UserLogin success.", zlog.String("ClientId", UserMgr.ClientId))
 	return nil
 }
 func AccessToken() error {
@@ -78,8 +85,8 @@ func AccessToken() error {
 	}
 	request.Header.Set("Content-type", "text/plain")
 	//request.Header.Set("tlinkAppId", RemoteUserData.ClientId)
-	request.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(RemoteUserData.ClientId+
-		":"+RemoteUserData.Secret)))
+	request.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(UserMgr.ClientId+
+		":"+UserMgr.Secret)))
 	request.Header.Set("cache-control", "no-cache")
 	client := &http.Client{}
 	respone, err := client.Do(request)
@@ -92,17 +99,97 @@ func AccessToken() error {
 	atr := &model.AccessTokenRespone{}
 	err = json.Unmarshal(result, atr)
 	if err != nil {
-		zlog.Error("Unmarshal userlogin respone", zlog.String("Err", err.Error()))
+		zlog.Error("Unmarshal AccessToken respone", zlog.String("Err", err.Error()))
 		return err
 	}
-	RemoteUserData.AccessToken = atr.Access_Token
-	RemoteUserData.RefreshToken = atr.Refresh_Token
-	RemoteUserData.TokenType = atr.Token_Type
-	RemoteUserData.ClientId = atr.ClientId
-	RemoteUserData.ClientSecret = atr.ClientSecret
-	RemoteUserData.ExpiresIn = atr.Expires_In
+	UserMgr.AccessToken = atr.Access_Token
+	UserMgr.RefreshToken = atr.Refresh_Token
+	UserMgr.TokenType = atr.Token_Type
+	UserMgr.ClientId = atr.ClientId
+	UserMgr.ClientSecret = atr.ClientSecret
+	UserMgr.ExpiresIn = atr.Expires_In
+
+	UserMgr.userstate = Userstate_Access
+	zlog.Info("AccessToken success.", zlog.String("AccessToken", UserMgr.AccessToken),
+		zlog.Int64("ExpiresIn", UserMgr.ExpiresIn))
 	return nil
 }
 func FlushToken() error {
+	url := fmt.Sprintf(model.RefreshToken, UserMgr.RefreshToken, UserMgr.ClientId, UserMgr.Secret)
+	request, err := http.NewRequest("POST", conf.Conf.RemoteService+url, strings.NewReader(""))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-type", "text/plain")
+	request.Header.Set("cache-control", "no-cache")
+	client := &http.Client{}
+	respone, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer respone.Body.Close()
+
+	result, _ := ioutil.ReadAll(respone.Body)
+	atr := &model.AccessTokenRespone{}
+	err = json.Unmarshal(result, atr)
+	if err != nil {
+		zlog.Error("Unmarshal FlushToken respone", zlog.String("Err", err.Error()))
+		return err
+	}
+	UserMgr.AccessToken = atr.Access_Token
+	UserMgr.RefreshToken = atr.Refresh_Token
+	UserMgr.TokenType = atr.Token_Type
+	UserMgr.ClientId = atr.ClientId
+	UserMgr.ClientSecret = atr.ClientSecret
+	UserMgr.ExpiresIn = atr.Expires_In
+
+	UserMgr.userstate = Userstate_Flush
+	zlog.Info("FlushToken success.", zlog.String("AccessToken", UserMgr.AccessToken),
+		zlog.Int64("ExpiresIn", UserMgr.ExpiresIn))
 	return nil
+}
+
+var UserMgr = &UserManager{}
+
+type UserManager struct {
+	RemoteUser
+	userstate int
+	nextFlush int64
+}
+
+func (dm *UserManager) Name() string {
+	return "UserManager"
+}
+func (dm *UserManager) Init() bool {
+	return true
+}
+func (dm *UserManager) Update() bool {
+	switch dm.userstate {
+	case Userstate_Init:
+		err := UserLogin()
+		if err != nil {
+			zlog.Error("UserLogin in update.", zlog.String("Err", err.Error()))
+		}
+	case Userstate_Login:
+		err := AccessToken()
+		if err != nil {
+			zlog.Error("AccessToken in update.", zlog.String("Err", err.Error()))
+		}
+		dm.nextFlush = time.Now().Add(time.Minute).Unix()
+	case Userstate_Access:
+		fallthrough
+	case Userstate_Flush:
+		if dm.nextFlush < time.Now().Unix() {
+			err := FlushToken()
+			if err != nil {
+				dm.userstate = Userstate_Login
+			} else {
+				dm.nextFlush = time.Now().Add(time.Minute).Unix()
+			}
+		}
+	}
+	return true
+}
+func (dm *UserManager) End() bool {
+	return true
 }

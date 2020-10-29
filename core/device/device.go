@@ -3,7 +3,6 @@ package device
 var DeviceMgr = &DeviceManager{}
 
 type DeviceManager struct {
-
 }
 
 func (dm *DeviceManager) Name() string{
