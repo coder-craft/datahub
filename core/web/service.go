@@ -16,7 +16,7 @@ import (
 func init() {
 	http.HandleFunc("/QueryDeviceData", QueryDeviceData)
 	http.HandleFunc("/SwitcherController", SwitcherController)
-	http.HandleFunc("/", RedirectResponse)
+	//http.HandleFunc("/", RedirectResponse)
 }
 func StartHttpService() {
 	go func() {
@@ -27,7 +27,7 @@ func StartHttpService() {
 	}()
 }
 
-//http://ip:port/QueryDeviceData?device=SJ2D1EQ8A31E9O42
+//http://ip:port/QueryDeviceData?device=SJ2D1EQ8A31E9O42&username=test&password=1111&curpage=1&pagesize=10
 func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 	m := req.URL.Query()
 	device := m.Get("device")
@@ -35,11 +35,29 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 		zlog.Info("QueryDeviceData param", zlog.String(req.RemoteAddr, "device is empty"))
 		return
 	}
+	userName := m.Get("username")
+	passWord := m.Get("password")
+	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	if user == nil {
+		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+	}
+	if user == nil {
+		zlog.Info("QueryDeviceData param", zlog.String(req.RemoteAddr, "user error"))
+		return
+	}
+	curpage, _ := strconv.Atoi(m.Get("curpage"))
+	pagesize, _ := strconv.Atoi(m.Get("pagesize"))
+	if curpage == 0 {
+		curpage = 1
+	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
 	reqire, _ := json.Marshal(model.DeviceDataReq{
-		UserId:   remoteuser.UserMgr.UserId,
+		UserId:   user.UserId,
 		DeviceNo: device,
-		CurrPage: 1,
-		PageSize: 10,
+		CurrPage: int64(1),
+		PageSize: int64(10),
 	})
 	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.DeviceData,
 		strings.NewReader(string(reqire)))
@@ -48,8 +66,8 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	request.Header.Set("Content-type", "application/json")
-	request.Header.Set("tlinkAppId", remoteuser.UserMgr.ClientId)
-	request.Header.Set("Authorization", "Bearer "+remoteuser.UserMgr.AccessToken)
+	request.Header.Set("tlinkAppId", user.ClientId)
+	request.Header.Set("Authorization", "Bearer "+user.AccessToken)
 	request.Header.Set("cache-control", "no-cache")
 	client := &http.Client{}
 	respone, err := client.Do(request)
@@ -62,12 +80,22 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 	io.Copy(rw, respone.Body)
 }
 
-//http://ip:port/QueryDeviceData?device=SJ2D1EQ8A31E9O42&sensor=1&switcher=0
+//http://ip:port/SwitcherController?device=SJ2D1EQ8A31E9O42&sensor=1&switcher=0&username=test&password=1111
 func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 	m := req.URL.Query()
 	device := m.Get("device")
 	if device == "" {
 		zlog.Info("SwitcherController param", zlog.String(req.RemoteAddr, "device is empty"))
+		return
+	}
+	userName := m.Get("username")
+	passWord := m.Get("password")
+	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	if user == nil {
+		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+	}
+	if user == nil {
+		zlog.Info("QueryDeviceData param", zlog.String(req.RemoteAddr, "user error"))
 		return
 	}
 	sensorStr := m.Get("sensor")
@@ -83,7 +111,7 @@ func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 	sensor, _ := strconv.Atoi(sensorStr)
 	switcher, _ := strconv.Atoi(switcherStr)
 	reqire, _ := json.Marshal(model.SwitcherControllerReq{
-		UserId:   remoteuser.UserMgr.UserId,
+		UserId:   user.UserId,
 		DeviceNo: device,
 		SensorId: int64(sensor),
 		Switcher: int64(switcher),
@@ -95,8 +123,8 @@ func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	request.Header.Set("Content-type", "application/json")
-	request.Header.Set("tlinkAppId", remoteuser.UserMgr.ClientId)
-	request.Header.Set("Authorization", "Bearer "+remoteuser.UserMgr.AccessToken)
+	request.Header.Set("tlinkAppId", user.ClientId)
+	request.Header.Set("Authorization", "Bearer "+user.AccessToken)
 	request.Header.Set("cache-control", "no-cache")
 	client := &http.Client{}
 	respone, err := client.Do(request)

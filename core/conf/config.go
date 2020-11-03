@@ -14,14 +14,13 @@ var (
 )
 
 type Config struct {
-	UserName      string
-	UserPass      string
 	UserApiKey    string
 	LocalService  string
 	RemoteService string
 	MysqlAccounts string
 	WhiteList     []string
 	BlackList     []string
+	AppService    string
 }
 
 func init() {

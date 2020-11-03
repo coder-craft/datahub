@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"./appuser"
 	"./common/zlog"
 	"./device"
 	"./module"
@@ -26,16 +27,12 @@ func Start() {
 			}
 		}
 	}()
-	err := remoteuser.InitUser()
-	if err != nil {
-		zlog.Error("Init user", zlog.String("Err", err.Error()))
-		return
-	}
 	_ = mysql.InitMysqlDB()
 	web.StartHttpService()
 	//module
 	module.RegisterModule(device.DeviceMgr, time.Second)
-	module.RegisterModule(remoteuser.UserMgr, time.Second)
+	module.RegisterModule(appuser.AppUserMgr, time.Minute)
+	module.RegisterModule(remoteuser.RemoteUserMgr, time.Second)
 	module.ModuleStart()
 }
 func Stop() {

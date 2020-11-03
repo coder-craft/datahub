@@ -1,5 +1,21 @@
 package model
 
+type RemoteUser struct {
+	UserName     string
+	PassWord     string
+	UserId       int64
+	ApiKey       string
+	Secret       string
+	AccessToken  string
+	TokenType    string
+	RefreshToken string
+	ClientId     string
+	ClientSecret string
+	ExpiresIn    int64
+	Userstate    int
+	NextFlush    int64
+}
+
 const UserLoginUrl = "/api/user/userLogin"
 
 type UserLoginReq struct {
