@@ -67,3 +67,19 @@ type SwitcherControllerReq struct {
 	Switcher int64  `json:"switcher"`
 	SensorId int64  `json:"sensorId"`
 }
+
+const GetDevices = "api/device/getDevices"
+
+type GetDevicesReq struct {
+	UserId   int64 `json:"userId"`
+	CurrPage int64 `json:"currPage"`
+	PageSize int64 `json:"pageSize"`
+}
+
+const GetDeviceSensorDatas = "/api/device/getDeviceSensorDatas"
+
+type GetDeviceSensorDatasReq struct {
+	UserId   int64 `json:"userId"`
+	CurrPage int64 `json:"currPage"`
+	PageSize int64 `json:"pageSize"`
+}

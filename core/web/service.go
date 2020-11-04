@@ -15,6 +15,8 @@ import (
 
 func init() {
 	http.HandleFunc("/QueryDeviceData", QueryDeviceData)
+	http.HandleFunc("/QueryDevice", QueryDevice)
+	http.HandleFunc("/QueryDeviceDatas", GetDeviceSensorDatas)
 	http.HandleFunc("/SwitcherController", SwitcherController)
 	//http.HandleFunc("/", RedirectResponse)
 }
@@ -56,8 +58,8 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 	reqire, _ := json.Marshal(model.DeviceDataReq{
 		UserId:   user.UserId,
 		DeviceNo: device,
-		CurrPage: int64(1),
-		PageSize: int64(10),
+		CurrPage: int64(curpage),
+		PageSize: int64(pagesize),
 	})
 	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.DeviceData,
 		strings.NewReader(string(reqire)))
@@ -133,6 +135,108 @@ func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	zlog.Info("SwitcherController status", zlog.Int("Code", respone.StatusCode))
+	defer respone.Body.Close()
+	io.Copy(rw, respone.Body)
+}
+
+//http://ip:port/QueryDevice?username=test&password=1111&curpage=1&pagesize=10
+func QueryDevice(rw http.ResponseWriter, req *http.Request) {
+	m := req.URL.Query()
+	userName := m.Get("username")
+	passWord := m.Get("password")
+	if len(userName) == 0 || len(passWord) == 0 {
+		zlog.Info("QueryDevice param", zlog.String("Err", "Param error"))
+		return
+	}
+	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	if user == nil {
+		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+	}
+	if user == nil {
+		zlog.Info("QueryDevice param", zlog.String(req.RemoteAddr, "user error"))
+		return
+	}
+	curpage, _ := strconv.Atoi(m.Get("curpage"))
+	pagesize, _ := strconv.Atoi(m.Get("pagesize"))
+	if curpage == 0 {
+		curpage = 1
+	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
+	reqire, _ := json.Marshal(model.GetDevicesReq{
+		UserId:   user.UserId,
+		CurrPage: int64(1),
+		PageSize: int64(10),
+	})
+	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.GetDevices,
+		strings.NewReader(string(reqire)))
+	if err != nil {
+		zlog.Error("QueryDevice NewRequest", zlog.String("Err", err.Error()))
+		return
+	}
+	request.Header.Set("Content-type", "application/json")
+	request.Header.Set("tlinkAppId", user.ClientId)
+	request.Header.Set("Authorization", "Bearer "+user.AccessToken)
+	request.Header.Set("cache-control", "no-cache")
+	client := &http.Client{}
+	respone, err := client.Do(request)
+	if err != nil {
+		zlog.Error("QueryDevice Do", zlog.String("Err", err.Error()))
+		return
+	}
+	zlog.Info("QueryDevice status", zlog.Int("Code", respone.StatusCode))
+	defer respone.Body.Close()
+	io.Copy(rw, respone.Body)
+}
+
+//http://ip:port/QueryDeviceDatas?username=test&password=1111&curpage=1&pagesize=10
+func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
+	m := req.URL.Query()
+	userName := m.Get("username")
+	passWord := m.Get("password")
+	if len(userName) == 0 || len(passWord) == 0 {
+		zlog.Info("QueryDevice param", zlog.String("Err", "Param error"))
+		return
+	}
+	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	if user == nil {
+		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+	}
+	if user == nil {
+		zlog.Info("QueryDevice param", zlog.String(req.RemoteAddr, "user error"))
+		return
+	}
+	curpage, _ := strconv.Atoi(m.Get("curpage"))
+	pagesize, _ := strconv.Atoi(m.Get("pagesize"))
+	if curpage == 0 {
+		curpage = 1
+	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
+	reqire, _ := json.Marshal(model.GetDeviceSensorDatasReq{
+		UserId:   user.UserId,
+		CurrPage: int64(1),
+		PageSize: int64(10),
+	})
+	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.GetDeviceSensorDatas,
+		strings.NewReader(string(reqire)))
+	if err != nil {
+		zlog.Error("QueryDevice NewRequest", zlog.String("Err", err.Error()))
+		return
+	}
+	request.Header.Set("Content-type", "application/json")
+	request.Header.Set("tlinkAppId", user.ClientId)
+	request.Header.Set("Authorization", "Bearer "+user.AccessToken)
+	request.Header.Set("cache-control", "no-cache")
+	client := &http.Client{}
+	respone, err := client.Do(request)
+	if err != nil {
+		zlog.Error("QueryDevice Do", zlog.String("Err", err.Error()))
+		return
+	}
+	zlog.Info("QueryDevice status", zlog.Int("Code", respone.StatusCode))
 	defer respone.Body.Close()
 	io.Copy(rw, respone.Body)
 }
