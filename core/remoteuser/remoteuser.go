@@ -190,6 +190,9 @@ func FlushToken(user *model.RemoteUser) error {
 	user.ExpiresIn = atr.Expires_In
 
 	user.Userstate = Userstate_Flush
+	if user.ExpiresIn == 0 {
+		user.ExpiresIn = 3000
+	}
 	user.NextFlush = time.Now().Add(time.Second * time.Duration(user.ExpiresIn/2)).Unix()
 	zlog.Info("FlushToken success.", zlog.String("AccessToken", user.AccessToken),
 		zlog.Int64("ExpiresIn", user.ExpiresIn))

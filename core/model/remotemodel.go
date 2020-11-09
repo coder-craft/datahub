@@ -83,3 +83,10 @@ type GetDeviceSensorDatasReq struct {
 	CurrPage int64 `json:"currPage"`
 	PageSize int64 `json:"pageSize"`
 }
+
+const GetSingleSensorDatas = "/api/device/getSingleSensorDatas"
+
+type SingleSensorDatasReq struct {
+	UserId   int64 `json:"userId"`
+	SensorId int64  `json:"sensorId"`
+}

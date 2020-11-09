@@ -18,6 +18,7 @@ func init() {
 	http.HandleFunc("/QueryDevice", QueryDevice)
 	http.HandleFunc("/QueryDeviceDatas", GetDeviceSensorDatas)
 	http.HandleFunc("/SwitcherController", SwitcherController)
+	http.HandleFunc("/GetSingleSensorDatas", GetSingleSensorDatas)
 	//http.HandleFunc("/", RedirectResponse)
 }
 func StartHttpService() {
@@ -97,7 +98,7 @@ func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
 	}
 	if user == nil {
-		zlog.Info("QueryDeviceData param", zlog.String(req.RemoteAddr, "user error"))
+		zlog.Info("SwitcherController param", zlog.String(req.RemoteAddr, "user error"))
 		return
 	}
 	sensorStr := m.Get("sensor")
@@ -166,8 +167,8 @@ func QueryDevice(rw http.ResponseWriter, req *http.Request) {
 	}
 	reqire, _ := json.Marshal(model.GetDevicesReq{
 		UserId:   user.UserId,
-		CurrPage: int64(1),
-		PageSize: int64(10),
+		CurrPage: int64(curpage),
+		PageSize: int64(pagesize),
 	})
 	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.GetDevices,
 		strings.NewReader(string(reqire)))
@@ -190,13 +191,13 @@ func QueryDevice(rw http.ResponseWriter, req *http.Request) {
 	io.Copy(rw, respone.Body)
 }
 
-//http://ip:port/QueryDeviceDatas?username=test&password=1111&curpage=1&pagesize=10
+//http://ip:port/GetDeviceSensorDatas?username=test&password=1111&curpage=1&pagesize=10
 func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
 	m := req.URL.Query()
 	userName := m.Get("username")
 	passWord := m.Get("password")
 	if len(userName) == 0 || len(passWord) == 0 {
-		zlog.Info("QueryDevice param", zlog.String("Err", "Param error"))
+		zlog.Info("GetDeviceSensorDatas param", zlog.String("Err", "Param error"))
 		return
 	}
 	user := remoteuser.RemoteUserMgr.GetUser(userName)
@@ -204,7 +205,7 @@ func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
 		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
 	}
 	if user == nil {
-		zlog.Info("QueryDevice param", zlog.String(req.RemoteAddr, "user error"))
+		zlog.Info("GetDeviceSensorDatas param", zlog.String(req.RemoteAddr, "user error"))
 		return
 	}
 	curpage, _ := strconv.Atoi(m.Get("curpage"))
@@ -217,13 +218,13 @@ func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
 	}
 	reqire, _ := json.Marshal(model.GetDeviceSensorDatasReq{
 		UserId:   user.UserId,
-		CurrPage: int64(1),
-		PageSize: int64(10),
+		CurrPage: int64(curpage),
+		PageSize: int64(pagesize),
 	})
 	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.GetDeviceSensorDatas,
 		strings.NewReader(string(reqire)))
 	if err != nil {
-		zlog.Error("QueryDevice NewRequest", zlog.String("Err", err.Error()))
+		zlog.Error("GetDeviceSensorDatas NewRequest", zlog.String("Err", err.Error()))
 		return
 	}
 	request.Header.Set("Content-type", "application/json")
@@ -233,10 +234,66 @@ func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
 	client := &http.Client{}
 	respone, err := client.Do(request)
 	if err != nil {
-		zlog.Error("QueryDevice Do", zlog.String("Err", err.Error()))
+		zlog.Error("GetDeviceSensorDatas Do", zlog.String("Err", err.Error()))
 		return
 	}
-	zlog.Info("QueryDevice status", zlog.Int("Code", respone.StatusCode))
+	zlog.Info("GetDeviceSensorDatas status", zlog.Int("Code", respone.StatusCode))
+	defer respone.Body.Close()
+	io.Copy(rw, respone.Body)
+}
+
+//http://ip:port/GetSingleSensorDatas?username=test&password=1111&sensor=1&curpage=1&pagesize=10
+func GetSingleSensorDatas(rw http.ResponseWriter, req *http.Request) {
+	m := req.URL.Query()
+	userName := m.Get("username")
+	passWord := m.Get("password")
+	if len(userName) == 0 || len(passWord) == 0 {
+		zlog.Info("GetSingleSensorDatas param", zlog.String("Err", "Param error"))
+		return
+	}
+	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	if user == nil {
+		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+	}
+	if user == nil {
+		zlog.Info("GetSingleSensorDatas param", zlog.String(req.RemoteAddr, "user error"))
+		return
+	}
+	curpage, _ := strconv.Atoi(m.Get("curpage"))
+	pagesize, _ := strconv.Atoi(m.Get("pagesize"))
+	if curpage == 0 {
+		curpage = 1
+	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
+	sensorStr := m.Get("sensor")
+	if sensorStr == "" {
+		zlog.Info("GetSingleSensorDatas param", zlog.String(req.RemoteAddr, "sensor is empty"))
+		return
+	}
+	sensorId,_ := strconv.Atoi(sensorStr)
+	reqire, _ := json.Marshal(model.SingleSensorDatasReq{
+		UserId:   user.UserId,
+		SensorId: int64(sensorId),
+	})
+	request, err := http.NewRequest("POST", conf.Conf.RemoteService+model.GetSingleSensorDatas,
+		strings.NewReader(string(reqire)))
+	if err != nil {
+		zlog.Error("GetSingleSensorDatas NewRequest", zlog.String("Err", err.Error()))
+		return
+	}
+	request.Header.Set("Content-type", "application/json")
+	request.Header.Set("tlinkAppId", user.ClientId)
+	request.Header.Set("Authorization", "Bearer "+user.AccessToken)
+	request.Header.Set("cache-control", "no-cache")
+	client := &http.Client{}
+	respone, err := client.Do(request)
+	if err != nil {
+		zlog.Error("GetSingleSensorDatas Do", zlog.String("Err", err.Error()))
+		return
+	}
+	zlog.Info("GetSingleSensorDatas status", zlog.Int("Code", respone.StatusCode))
 	defer respone.Body.Close()
 	io.Copy(rw, respone.Body)
 }
