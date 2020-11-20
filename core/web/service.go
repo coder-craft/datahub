@@ -40,9 +40,9 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 	}
 	userName := m.Get("username")
 	passWord := m.Get("password")
-	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	user := remoteuser.RemoteUserMgr.GetUser(userName + passWord)
 	if user == nil {
-		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+		user = remoteuser.RemoteUserMgr.UserLogin(userName+passWord, passWord)
 	}
 	if user == nil {
 		zlog.Info("QueryDeviceData param", zlog.String(req.RemoteAddr, "user error"))
@@ -93,9 +93,9 @@ func SwitcherController(rw http.ResponseWriter, req *http.Request) {
 	}
 	userName := m.Get("username")
 	passWord := m.Get("password")
-	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	user := remoteuser.RemoteUserMgr.GetUser(userName + passWord)
 	if user == nil {
-		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+		user = remoteuser.RemoteUserMgr.UserLogin(userName+passWord, passWord)
 	}
 	if user == nil {
 		zlog.Info("SwitcherController param", zlog.String(req.RemoteAddr, "user error"))
@@ -149,9 +149,9 @@ func QueryDevice(rw http.ResponseWriter, req *http.Request) {
 		zlog.Info("QueryDevice param", zlog.String("Err", "Param error"))
 		return
 	}
-	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	user := remoteuser.RemoteUserMgr.GetUser(userName + passWord)
 	if user == nil {
-		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+		user = remoteuser.RemoteUserMgr.UserLogin(userName+passWord, passWord)
 	}
 	if user == nil {
 		zlog.Info("QueryDevice param", zlog.String(req.RemoteAddr, "user error"))
@@ -200,9 +200,9 @@ func GetDeviceSensorDatas(rw http.ResponseWriter, req *http.Request) {
 		zlog.Info("GetDeviceSensorDatas param", zlog.String("Err", "Param error"))
 		return
 	}
-	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	user := remoteuser.RemoteUserMgr.GetUser(userName + passWord)
 	if user == nil {
-		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+		user = remoteuser.RemoteUserMgr.UserLogin(userName+passWord, passWord)
 	}
 	if user == nil {
 		zlog.Info("GetDeviceSensorDatas param", zlog.String(req.RemoteAddr, "user error"))
@@ -251,9 +251,9 @@ func GetSingleSensorDatas(rw http.ResponseWriter, req *http.Request) {
 		zlog.Info("GetSingleSensorDatas param", zlog.String("Err", "Param error"))
 		return
 	}
-	user := remoteuser.RemoteUserMgr.GetUser(userName)
+	user := remoteuser.RemoteUserMgr.GetUser(userName + passWord)
 	if user == nil {
-		user = remoteuser.RemoteUserMgr.UserLogin(userName, passWord)
+		user = remoteuser.RemoteUserMgr.UserLogin(userName+passWord, passWord)
 	}
 	if user == nil {
 		zlog.Info("GetSingleSensorDatas param", zlog.String(req.RemoteAddr, "user error"))
@@ -272,7 +272,7 @@ func GetSingleSensorDatas(rw http.ResponseWriter, req *http.Request) {
 		zlog.Info("GetSingleSensorDatas param", zlog.String(req.RemoteAddr, "sensor is empty"))
 		return
 	}
-	sensorId,_ := strconv.Atoi(sensorStr)
+	sensorId, _ := strconv.Atoi(sensorStr)
 	reqire, _ := json.Marshal(model.SingleSensorDatasReq{
 		UserId:   user.UserId,
 		SensorId: int64(sensorId),
