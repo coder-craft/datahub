@@ -80,6 +80,7 @@ func QueryDeviceData(rw http.ResponseWriter, req *http.Request) {
 	}
 	zlog.Info("QueryDeviceData status", zlog.Int("Code", respone.StatusCode))
 	if respone.StatusCode != 200 {
+
 		remoteuser.RemoteUserMgr.DelUser(userName + passWord)
 	}
 	defer respone.Body.Close()

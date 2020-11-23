@@ -76,20 +76,29 @@ func (rum *RemoteUserManager) Update() bool {
 func (rum *RemoteUserManager) End() bool {
 	return true
 }
-func (rum *RemoteUserManager) DelUser(key string){
+func (rum *RemoteUserManager) DelUser(key string) {
 	rum.User.Delete(key)
 }
 func (rum *RemoteUserManager) GetUser(key string) *model.RemoteUser {
-	user, ok := rum.User.Load(key)
+	u, ok := rum.User.Load(key)
 	if ok {
-		return user.(*model.RemoteUser)
+		user := u.(*model.RemoteUser)
+		if user == nil {
+			return nil
+		}
+		if user.NextFlush < time.Now().Unix() {
+			return nil
+		} else {
+			return user
+		}
 	} else {
 		return nil
 	}
 }
 func (rum *RemoteUserManager) StoreUser(user *model.RemoteUser) {
 	zlog.Info("StoreUser", zlog.String("User:", user.UserName), zlog.String("Pass:", user.PassWord))
-	rum.User.Store(user.UserName+user.PassWord, user)
+	key := user.UserName + user.PassWord
+	rum.User.Store(key, user)
 }
 func (rum *RemoteUserManager) UserLogin(userName, passWord string) *model.RemoteUser {
 	user := userLogin(userName, passWord)
