@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -35,6 +36,7 @@ func (rum *RemoteUserManager) Init() bool {
 	return true
 }
 func (rum *RemoteUserManager) Update() bool {
+	deleteKeys := []string{}
 	rum.User.Range(func(key, value interface{}) bool {
 		user := value.(*model.RemoteUser)
 		if user == nil {
@@ -45,6 +47,8 @@ func (rum *RemoteUserManager) Update() bool {
 			user := userLogin(user.UserName, user.PassWord)
 			if user == nil {
 				zlog.Error("UserLogin failed in update.")
+			} else {
+				rum.StoreUser(user)
 			}
 		case Userstate_Login:
 			err := AccessToken(user)
@@ -55,26 +59,37 @@ func (rum *RemoteUserManager) Update() bool {
 			fallthrough
 		case Userstate_Flush:
 			if user.NextFlush < time.Now().Unix() {
-				err := FlushToken(user)
-				if err != nil {
-					user.Userstate = Userstate_Login
-				}
+				deleteKeys = append(deleteKeys, user.UserName+user.PassWord)
+				//err := FlushToken(user)
+				//if err != nil {
+				//	user.Userstate = Userstate_Init
+				//}
 			}
 		}
 		return true
 	})
+	for _, key := range deleteKeys {
+		rum.DelUser(key)
+	}
 	return true
 }
 func (rum *RemoteUserManager) End() bool {
 	return true
 }
-func (rum *RemoteUserManager) GetUser(userName string) *model.RemoteUser {
-	user, ok := rum.User.Load(userName)
+func (rum *RemoteUserManager) DelUser(key string){
+	rum.User.Delete(key)
+}
+func (rum *RemoteUserManager) GetUser(key string) *model.RemoteUser {
+	user, ok := rum.User.Load(key)
 	if ok {
 		return user.(*model.RemoteUser)
 	} else {
 		return nil
 	}
+}
+func (rum *RemoteUserManager) StoreUser(user *model.RemoteUser) {
+	zlog.Info("StoreUser", zlog.String("User:", user.UserName), zlog.String("Pass:", user.PassWord))
+	rum.User.Store(user.UserName+user.PassWord, user)
 }
 func (rum *RemoteUserManager) UserLogin(userName, passWord string) *model.RemoteUser {
 	user := userLogin(userName, passWord)
@@ -86,7 +101,7 @@ func (rum *RemoteUserManager) UserLogin(userName, passWord string) *model.Remote
 		zlog.Error("AccessToken", zlog.String("Err", err.Error()), zlog.String("UserName", userName))
 		return nil
 	}
-	rum.User.Store(userName, user)
+	rum.StoreUser(user)
 	return user
 }
 func userLogin(userName, passWord string) *model.RemoteUser {
@@ -147,6 +162,9 @@ func AccessToken(user *model.RemoteUser) error {
 		zlog.Error("Unmarshal AccessToken respone", zlog.String("Err", err.Error()))
 		return err
 	}
+	if len(atr.Access_Token) == 0 || atr.Expires_In == 0 {
+		return errors.New("AccessToken error.")
+	}
 	user.AccessToken = atr.Access_Token
 	user.RefreshToken = atr.Refresh_Token
 	user.TokenType = atr.Token_Type
@@ -155,7 +173,8 @@ func AccessToken(user *model.RemoteUser) error {
 	user.ExpiresIn = atr.Expires_In
 
 	user.Userstate = Userstate_Access
-	user.NextFlush = time.Now().Add(time.Second * time.Duration(user.ExpiresIn/2)).Unix()
+	user.NextFlush = time.Now().Add(time.Second * time.Duration(user.ExpiresIn)).Unix()
+	//user.NextFlush = time.Now().Add(time.Second * 60).Unix()
 	zlog.Info("AccessToken success.", zlog.String("AccessToken", user.AccessToken),
 		zlog.Int64("ExpiresIn", user.ExpiresIn))
 	return nil
@@ -181,6 +200,9 @@ func FlushToken(user *model.RemoteUser) error {
 	if err != nil {
 		zlog.Error("Unmarshal FlushToken respone", zlog.String("Err", err.Error()))
 		return err
+	}
+	if len(atr.Access_Token) == 0 || atr.Expires_In == 0 {
+		return errors.New("FlushToken error.")
 	}
 	user.AccessToken = atr.Access_Token
 	user.RefreshToken = atr.Refresh_Token
